@@ -62,7 +62,7 @@ class AsyncScheduler:
         Create an asynchronous scheduler that executes jobs with the
         given level of concurrency.
         """
-        log.Info("%s: %s" % (self.__class__.__name__,
+        log.Debug("%s: %s" % (self.__class__.__name__,
                              _("instantiating at concurrency %d") %
                                (concurrency)))
         assert concurrency >= 0, "%s concurrency level must be >= 0" % (self.__class__.__name__,)
@@ -138,15 +138,16 @@ class AsyncScheduler:
         if self.__concurrency == 0:
             # special case this to not require any platform support for
             # threading at all
-            log.Info("%s: %s" % (self.__class__.__name__,
+            log.Log("%s: %s" % (self.__class__.__name__,
                      _("running task synchronously (asynchronicity disabled)")),
-                     log.InfoCode.synchronous_upload_begin)
+                     log.DEBUG, log.InfoCode.synchronous_upload_begin)
 
             return self.__run_synchronously(fn, params)
         else:
-            log.Info("%s: %s" % (self.__class__.__name__,
+            log.Log("%s: %s" % (self.__class__.__name__,
                      _("scheduling task for asynchronous execution")),
-                     log.InfoCode.asynchronous_upload_begin)
+                    log.DEBUG,
+                    log.InfoCode.asynchronous_upload_begin)
 
             return self.__run_asynchronously(fn, params)
 
@@ -173,9 +174,10 @@ class AsyncScheduler:
         def _waiter():
             return ret
 
-        log.Info("%s: %s" % (self.__class__.__name__,
+        log.Log("%s: %s" % (self.__class__.__name__,
                  _("task completed successfully")),
-                 log.InfoCode.synchronous_upload_done)
+                log.DEBUG,
+                log.InfoCode.synchronous_upload_done)
 
         return _waiter
 

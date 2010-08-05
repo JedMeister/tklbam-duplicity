@@ -115,7 +115,7 @@ class TemporaryDirectory:
         """
         self.__dir = tempfile.mkdtemp("-tempdir", "duplicity-", temproot)
 
-        log.Info(_("Using temporary directory %s") % (self.__dir,))
+        log.Debug(_("Using temporary directory %s") % (self.__dir,))
 
         # number of mktemp()/mkstemp() calls served so far
         self.__tempcount = 0
@@ -232,7 +232,7 @@ class TemporaryDirectory:
                         log.Debug(_("Removing still remembered temporary file %s") % (file,))
                         os.unlink(file)
                     except:
-                        log.Info(_("Cleanup of temporary file %s failed") % (file,))
+                        log.Debug(_("Cleanup of temporary file %s failed") % (file,))
                         pass
                 try:
                     os.rmdir(self.__dir)

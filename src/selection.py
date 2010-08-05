@@ -115,9 +115,10 @@ class Select:
             try:
                 mode = os.stat(fullpath)[stat.ST_MODE]
                 if stat.S_ISSOCK(mode):
-                    log.Info(_("Skipping socket %s") % fullpath,
-                             log.InfoCode.skipping_socket,
-                             util.escape(fullpath))
+                    log.Log(_("Skipping socket %s") % fullpath,
+                            log.DEBUG,
+                            log.InfoCode.skipping_socket,
+                            util.escape(fullpath))
                 else:
                     log.Warn(_("Error initializing file %s") % fullpath,
                              log.WarningCode.cannot_iterate,
@@ -307,10 +308,10 @@ probably isn't what you meant.""") %
         filelist_name is just a string used for logging.
 
         """
-        log.Notice(_("Reading filelist %s") % filelist_name)
+        log.Debug(_("Reading filelist %s") % filelist_name)
         tuple_list, something_excluded = \
                     self.filelist_read(filelist_fp, inc_default, filelist_name)
-        log.Notice(_("Sorting filelist %s") % filelist_name)
+        log.Debug(_("Sorting filelist %s") % filelist_name)
         tuple_list.sort()
         i = [0] # We have to put index in list because of stupid scoping rules
 

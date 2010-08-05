@@ -1004,7 +1004,7 @@ def check_resources(action):
             log.FatalError(_("Temp space has %d available, backup needs approx %d.") %
                            (freespace, needspace), log.ErrorCode.not_enough_freespace)
         else:
-            log.Info(_("Temp has %d available, backup will use approx %d.") %
+            log.Debug(_("Temp has %d available, backup will use approx %d.") %
                      (freespace, needspace))
 
         # Some environments like Cygwin run with an artificially
@@ -1020,7 +1020,7 @@ def check_resources(action):
                              "Use 'ulimit -n 1024' or higher to correct.\n") % (maxopen,),
                              log.ErrorCode.maxopen_too_low)
 
-def log_startup_parms(verbosity=log.INFO):
+def log_startup_parms(verbosity=log.DEBUG):
     """
     log Python, duplicity, and system versions
     """
@@ -1124,7 +1124,7 @@ def main():
     globals.gpg_profile.passphrase = get_passphrase(1, action)
 
     # log some debugging status info
-    log_startup_parms(log.INFO)
+    log_startup_parms(log.DEBUG)
 
     # check for disk space and available file handles
     check_resources(action)

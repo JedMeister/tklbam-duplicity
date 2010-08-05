@@ -547,8 +547,8 @@ def parse_cmdline_options(arglist):
     set_archive_dir(expand_archive_dir(globals.archive_dir,
                                        globals.backup_name))
 
-    log.Info(_("Using archive dir: %s") % (globals.archive_dir.name,))
-    log.Info(_("Using backup name: %s") % (globals.backup_name,))
+    log.Debug(_("Using archive dir: %s") % (globals.archive_dir.name,))
+    log.Debug(_("Using backup name: %s") % (globals.backup_name,))
 
     return args
 
@@ -927,5 +927,5 @@ Examples of URL strings are "scp://user@host.net:1234/path" and
         raise AssertionError("this code should not be reachable")
 
     check_consistency(action)
-    log.Info(_("Main action: ") + action)
+    log.Debug(_("Main action: ") + action)
     return action

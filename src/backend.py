@@ -76,7 +76,7 @@ def import_backends():
                 res = "Succeeded"
             except:
                 res = "Failed: " + str(sys.exc_info()[1])
-            log.Info("Import of %s %s" % (imp, res))
+            log.Debug("Import of %s %s" % (imp, res))
         else:
             continue
 

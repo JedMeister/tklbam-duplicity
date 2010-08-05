@@ -540,7 +540,7 @@ class Path(ROPath):
 
     def mkdir(self):
         """Make directory(s) at specified path"""
-        log.Info(_("Making directory %s") % (self.name,))
+        log.Debug(_("Making directory %s") % (self.name,))
         try:
             os.makedirs(self.name)
         except OSError:
@@ -550,7 +550,7 @@ class Path(ROPath):
 
     def delete(self):
         """Remove this file"""
-        log.Info(_("Deleting %s") % (self.name,))
+        log.Debug(_("Deleting %s") % (self.name,))
         if self.isdir():
             os.rmdir(self.name)
         else:
@@ -559,14 +559,14 @@ class Path(ROPath):
 
     def touch(self):
         """Open the file, write 0 bytes, close"""
-        log.Info(_("Touching %s") % (self.name,))
+        log.Debug(_("Touching %s") % (self.name,))
         fp = self.open("wb")
         fp.close()
 
     def deltree(self):
         """Remove self by recursively deleting files under it"""
         from duplicity import selection # todo: avoid circ. dep. issue
-        log.Info(_("Deleting tree %s") % (self.name,))
+        log.Debug(_("Deleting tree %s") % (self.name,))
         itr = IterTreeReducer(PathDeleter, [])
         for path in selection.Select(self).set_iter():
             itr(path.index, path)
