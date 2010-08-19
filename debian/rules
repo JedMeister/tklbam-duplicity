@@ -5,8 +5,7 @@
 # Uncomment this to turn on verbose mode.
 #export DH_VERBOSE=1
 
-PREFIX := debian/duplicity/usr
-
+PREFIX := debian/tklbam-duplicity/usr/lib/tklbam/deps
 
 ifneq (,$(findstring debug,$(DEB_BUILD_OPTIONS)))
 	CFLAGS += -g

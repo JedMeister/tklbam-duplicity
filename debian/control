@@ -1,17 +1,17 @@
-Source: duplicity
+Source: tklbam-duplicity
 Section: utils
 Priority: optional
-Maintainer: Alexander Zangerl <az@debian.org>
+Maintainer: Liraz Siri <liraz@turnkeylinux.org>
 Build-Depends: debhelper (>= 5.0.37.2), librsync-dev (>=0.9.6), python-dev, python-central (>= 0.5), dpatch
 Standards-Version: 3.8.3
 XS-Python-Version: all
 
-Package: duplicity
+Package: tklbam-duplicity
 Architecture: any
 Homepage: https://launchpad.net/duplicity
 XB-Python-Version: ${python:Versions}
 Depends: ${shlibs:Depends}, ${python:Depends}, gnupg
-Suggests: python-boto, ncftp
+Suggests: tklbam-python-boto, ncftp
 Description: encrypted bandwidth-efficient backup
  Duplicity backs directories by producing encrypted tar-format volumes
  and uploading them to a remote or local file server. Because duplicity
