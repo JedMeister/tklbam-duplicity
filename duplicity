@@ -457,6 +457,7 @@ def print_statistics(stats, bytes_written):
     """
     if globals.print_statistics:
         diffdir.stats.TotalDestinationSizeChange = bytes_written
+        print
         print diffdir.stats.get_stats_logstring(_("Backup Statistics"))
 
 
