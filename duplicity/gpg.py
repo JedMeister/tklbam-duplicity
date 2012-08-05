@@ -27,7 +27,7 @@ import os, types, tempfile, re, gzip
 
 from duplicity import misc
 from duplicity import globals
-import GnuPGInterface
+from duplicity import GnuPGInterface
 
 try:
     from hashlib import sha1
