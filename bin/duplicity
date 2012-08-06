@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 # -*- Mode:Python; indent-tabs-mode:nil; tab-width:4 -*-
 #
 # duplicity -- Encrypted bandwidth efficient backup
@@ -33,6 +33,19 @@ import traceback, platform, statvfs, resource, re
 pwd = os.path.abspath(os.path.dirname(sys.argv[0]))
 if os.path.exists(os.path.join(pwd, "../duplicity")):
     sys.path.insert(0, os.path.abspath(os.path.join(pwd, "../.")))
+
+def _find_duplicity_pylib(path):
+    if not os.path.isdir(path):
+        return None
+
+    for fpath, dnames, fnames in os.walk(path):
+        if 'duplicity' in dnames:
+            return fpath
+
+    return None
+
+install_root = os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), "../"))
+sys.path.insert(0, _find_duplicity_pylib(install_root))
 
 import gettext
 gettext.install('duplicity')
