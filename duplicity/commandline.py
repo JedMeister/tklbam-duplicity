@@ -68,10 +68,6 @@ def old_fn_deprecation(opt):
                           "and will be removed in a future release.\n"
                           "Use of default filenames is strongly suggested.") % opt
 
-def scp_deprecation(o,s,v,p):
-    print >>sys.stderr, "Warning: Option %s is deprecated and ignored. Use --ssh-options instead." % o
-
-
 def expand_fn(filename):
     return os.path.expanduser(os.path.expandvars(filename))
 
@@ -185,11 +181,11 @@ See:
 class OPHelpFix(optparse.OptionParser):
     def _get_encoding(self, file):
         """
-        try to get the encoding or switch to UTF-8
+        try to get the encoding or use UTF-8
         which is default encoding in python3 and most recent unixes
         """
-        encoding = getattr(file, "encoding", "UTF-8")
-        return encoding
+        encoding = getattr(file, "encoding", None)
+        return encoding or 'utf-8'
 
     def print_help(self, file=None):
         """
@@ -211,7 +207,7 @@ def parse_cmdline_options(arglist):
             import duplicity.backends.giobackend
             backend.force_backend(duplicity.backends.giobackend.GIOBackend)
         except ImportError:
-            log.FatalError(_("Unable to load gio module"), log.ErrorCode.gio_not_available)
+            log.FatalError(_("Unable to load gio backend: %s") % str(sys.exc_info()[1]), log.ErrorCode.gio_not_available)
 
     def set_log_fd(fd):
         if fd < 1:
@@ -260,6 +256,8 @@ def parse_cmdline_options(arglist):
     # (default of 0 disables asynchronicity).
     parser.add_option("--asynchronous-upload", action="store_const", const=1,
                       dest="async_concurrency")
+
+    parser.add_option("--compare-data", action="store_true")
 
     # config dir for future use
     parser.add_option("--config-dir", type="file", metavar=_("path"),
@@ -354,6 +352,12 @@ def parse_cmdline_options(arglist):
 
     parser.add_option("--gpg-options", action="extend", metavar=_("options"))
 
+    # TRANSL: Used in usage help to represent an ID for a hidden GnuPG key. Example:
+    # --hidden-encrypt-key <gpg_key_id>
+    parser.add_option("--hidden-encrypt-key", type="string", metavar=_("gpg-key-id"),
+                      dest="", action="callback",
+                      callback=lambda o, s, v, p: globals.gpg_profile.hidden_recipients.append(v)) #@UndefinedVariable
+
     # ignore (some) errors during operations; supposed to make it more
     # likely that you are able to restore data under problematic
     # circumstances. the default should absolutely always be False unless
@@ -398,6 +402,9 @@ def parse_cmdline_options(arglist):
                       dest="", action="callback",
                       callback=lambda o, s, v, p: log.add_file(v))
 
+    # Maximum block size for large files
+    parser.add_option("--max-blocksize", type="int", metavar=_("number"))
+
     # TRANSL: Used in usage help (noun)
     parser.add_option("--name", dest="backup_name", metavar=_("backup name"))
 
@@ -428,6 +435,12 @@ def parse_cmdline_options(arglist):
                       dest="old_filenames",
                       callback=lambda o, s, v, p: (setattr(p.values, o.dest, True),
                                                    old_fn_deprecation(s)))
+
+    # Used to display the progress for the full and incremental backup operations
+    parser.add_option("--progress", action="store_true")
+
+    # Used to control the progress option update rate in seconds. Default: prompts each 3 seconds
+    parser.add_option("--progress-rate", type="int", metavar=_("number"))
 
     # option to trigger Pydev debugger
     parser.add_option("--pydevd", action="store_true")
@@ -473,15 +486,11 @@ def parse_cmdline_options(arglist):
     if sys.version_info[:2] >= (2,6):
         parser.add_option("--s3-use-multiprocessing", action="store_true")
 
-    # scp command to use
-    # TRANSL: noun
-    parser.add_option("--scp-command", nargs=1, type="string",
-                      action="callback", callback=scp_deprecation)
+    # scp command to use (ssh pexpect backend)
+    parser.add_option("--scp-command", metavar=_("command"))
 
-    # sftp command to use
-    # TRANSL: noun
-    parser.add_option("--sftp-command", nargs=1, type="string",
-                      action="callback", callback=scp_deprecation)
+    # sftp command to use (ssh pexpect backend)
+    parser.add_option("--sftp-command", metavar=_("command"))
 
     # If set, use short (< 30 char) filenames for all the remote files.
     parser.add_option("--short-filenames", action="callback",
@@ -498,8 +507,16 @@ def parse_cmdline_options(arglist):
     # default to batch mode using public-key encryption
     parser.add_option("--ssh-askpass", action="store_true")
 
+    # allow the user to switch ssh backend
+    parser.add_option("--ssh-backend", metavar=_("paramiko|pexpect"))
+
     # user added ssh options
     parser.add_option("--ssh-options", action="extend", metavar=_("options"))
+
+    # user added ssl options (webdav backend)
+    parser.add_option("--ssl-cacert-file", metavar=_("pem formatted bundle of certificate authorities"))
+
+    parser.add_option("--ssl-no-check-certificate", action="store_true")
 
     # Working directory for the tempfile module. Defaults to /tmp on most systems.
     parser.add_option("--tempdir", dest="temproot", type="file", metavar=_("path"))
@@ -809,10 +826,13 @@ def usage():
   s3+http://%(bucket_name)s[/%(prefix)s]
   scp://%(user)s[:%(password)s]@%(other_host)s[:%(port)s]/%(some_dir)s
   ssh://%(user)s[:%(password)s]@%(other_host)s[:%(port)s]/%(some_dir)s
+  swift://%(container_name)s
   tahoe://%(alias)s/%(directory)s
   webdav://%(user)s[:%(password)s]@%(other_host)s/%(some_dir)s
   webdavs://%(user)s[:%(password)s]@%(other_host)s/%(some_dir)s
   gdocs://%(user)s[:%(password)s]@%(other_host)s/%(some_dir)s
+  mega://%(user)s[:%(password)s]@%(other_host)s/%(some_dir)s
+  dpbx:///%(some_dir)s
 
 """ % dict
 

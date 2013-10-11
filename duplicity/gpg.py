@@ -21,13 +21,16 @@
 
 """
 duplicity's gpg interface, builds upon Frank Tobin's GnuPGInterface
+which is now patched with some code for iterative threaded execution
+see duplicity's README for details
 """
 
 import os, types, tempfile, re, gzip
 
 from duplicity import misc
 from duplicity import globals
-from duplicity import GnuPGInterface
+from duplicity import gpginterface
+from duplicity import tempdir
 
 try:
     from hashlib import sha1
@@ -51,7 +54,7 @@ class GPGProfile:
     Just hold some GPG settings, avoid passing tons of arguments
     """
     def __init__(self, passphrase = None, sign_key = None,
-                 recipients = None):
+                 recipients = None, hidden_recipients = None):
         """
         Set all data with initializer
 
@@ -73,6 +76,12 @@ class GPGProfile:
         else:
             self.recipients = []
 
+        if hidden_recipients is not None:
+            assert type(hidden_recipients) is types.ListType # must be list, not tuple
+            self.hidden_recipients = hidden_recipients
+        else:
+            self.hidden_recipients = []
+
 
 class GPGFile:
     """
@@ -93,13 +102,13 @@ class GPGFile:
         """
         self.status_fp = None # used to find signature
         self.closed = None # set to true after file closed
-        self.logger_fp = tempfile.TemporaryFile()
-        self.stderr_fp = tempfile.TemporaryFile()
+        self.logger_fp = tempfile.TemporaryFile( dir=tempdir.default().dir() )
+        self.stderr_fp = tempfile.TemporaryFile( dir=tempdir.default().dir() )
         self.name = encrypt_path
         self.byte_count = 0
 
         # Start GPG process - copied from GnuPGInterface docstring.
-        gnupg = GnuPGInterface.GnuPG()
+        gnupg = gpginterface.GnuPG()
         gnupg.options.meta_interactive = 0
         gnupg.options.extra_args.append('--no-secmem-warning')
         if globals.use_agent:
@@ -128,7 +137,10 @@ class GPGFile:
             if profile.recipients:
                 gnupg.options.recipients = profile.recipients
                 cmdlist.append('--encrypt')
-            else:
+            if profile.hidden_recipients:
+                gnupg.options.hidden_recipients = profile.hidden_recipients
+                cmdlist.append('--encrypt')
+            if not (profile.recipients or profile.hidden_recipients):
                 cmdlist.append('--symmetric')
                 # use integrity protection
                 gnupg.options.extra_args.append('--force-mdc')
@@ -146,10 +158,10 @@ class GPGFile:
                 p1.handles['passphrase'].close()
             self.gpg_input = p1.handles['stdin']
         else:
-            if profile.recipients and profile.encrypt_secring:
+            if (profile.recipients or profile.hidden_recipients) and profile.encrypt_secring:
                 cmdlist.append('--secret-keyring')
                 cmdlist.append(profile.encrypt_secring)
-            self.status_fp = tempfile.TemporaryFile()
+            self.status_fp = tempfile.TemporaryFile( dir=tempdir.default().dir() )
             # Skip the passphrase if using the agent
             if globals.use_agent:
                 gnupg_fhs = ['stdout',]
@@ -307,17 +319,16 @@ def GPGWriteFile(block_iter, filename, profile,
     def get_current_size():
         return os.stat(filename).st_size
 
-    block_size = 128 * 1024        # don't bother requesting blocks smaller, but also don't ask for bigger
     target_size = size - 50 * 1024 # fudge factor, compensate for gpg buffering
     data_size = target_size - max_footer_size
     file = GPGFile(True, path.Path(filename), profile)
     at_end_of_blockiter = 0
     while True:
         bytes_to_go = data_size - get_current_size()
-        if bytes_to_go < block_size:
+        if bytes_to_go < block_iter.get_read_size():
             break
         try:
-            data = block_iter.next(min(block_size, bytes_to_go)).data
+            data = block_iter.next().data
         except StopIteration:
             at_end_of_blockiter = 1
             break
@@ -366,10 +377,10 @@ def GzipWriteFile(block_iter, filename,
     at_end_of_blockiter = 0
     while True:
         bytes_to_go = size - file_counted.byte_count
-        if bytes_to_go < 32 * 1024:
+        if bytes_to_go < block_iter.get_read_size():
             break
         try:
-            new_block = block_iter.next(min(128*1024, bytes_to_go))
+            new_block = block_iter.next()
         except StopIteration:
             at_end_of_blockiter = 1
             break
@@ -386,7 +397,7 @@ def get_hash(hash, path, hex = 1):
     hash should be "MD5" or "SHA1".  The output will be in hexadecimal
     form if hex is true, and in text (base64) otherwise.
     """
-    assert path.isreg()
+    #assert path.isreg()
     fp = path.open("rb")
     if hash == "SHA1":
         hash_obj = sha1()

@@ -15,10 +15,10 @@ ifeq (,$(findstring nostrip,$(DEB_BUILD_OPTIONS)))
 	INSTALL_PROGRAM += -s
 endif
 
-
-# we use dpatch
-include /usr/share/dpatch/dpatch.make
-
+CFLAGS += $(shell  dpkg-buildflags --get CFLAGS)
+export CFLAGS
+export CPPFLAGS:=$(shell dpkg-buildflags --get CPPFLAGS)
+export LDFLAGS:=$(shell dpkg-buildflags --get LDFLAGS)
 
 configure: configure-stamp
 configure-stamp:
@@ -26,18 +26,19 @@ configure-stamp:
 # Add here commands to configure the package.
 	touch configure-stamp
 
+build-arch: build
+build-indep: build
 
 build: build-stamp
 
-build-stamp: patch configure-stamp 
+build-stamp: configure-stamp 
 	dh_testdir
 
 # Add here commands to compile the package.
 	python setup.py build
 	touch build-stamp
 
-clean: clean1 unpatch
-clean1:
+clean: 
 	dh_testdir
 	dh_testroot
 	rm -f build-stamp configure-stamp
@@ -50,7 +51,7 @@ clean1:
 install: build
 	dh_testdir
 	dh_testroot
-	dh_clean -k
+	dh_prep
 	dh_installdirs
 
 # Add here commands to install the package into debian/duplicity.

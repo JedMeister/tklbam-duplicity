@@ -26,6 +26,7 @@
 import os
 import sys
 import logging
+import datetime
 
 MIN = 0
 ERROR = 0
@@ -100,6 +101,7 @@ class InfoCode:
     synchronous_upload_done = 13
     asynchronous_upload_done = 14
     skipping_socket = 15
+    upload_progress = 16
 
 def Info(s, code=InfoCode.generic, extra=None):
     """Shortcut used for info messages (verbosity 5)."""
@@ -112,6 +114,83 @@ def Progress(s, current, total=None):
     else:
         controlLine = '%d' % current
     Log(s, INFO, InfoCode.progress, controlLine)
+
+def _ElapsedSecs2Str(secs):
+    tdelta = datetime.timedelta(seconds=secs)
+    hours,rem = divmod(tdelta.seconds, 3600)
+    minutes,seconds = divmod(rem, 60)
+    fmt = ""
+    if tdelta.days > 0:
+        fmt = "%dd," % (tdelta.days)
+    fmt = "%s%02d:%02d:%02d" % (fmt, hours, minutes, seconds)
+    return fmt
+
+def _RemainingSecs2Str(secs):
+    tdelta = datetime.timedelta(seconds=secs)
+    hours,rem = divmod(tdelta.seconds, 3600)
+    minutes,seconds = divmod(rem, 60)
+    fmt = ""
+    if tdelta.days > 0:
+        fmt = "%dd" % (tdelta.days)
+        if hours > 0:
+            fmt = "%s %dh" % (fmt, hours)
+        if minutes > 0:
+            fmt = "%s %dmin" % (fmt, minutes)
+    elif hours > 0:
+        fmt = "%dh" % hours
+        if minutes > 0:
+            fmt = "%s %dmin" % (fmt, minutes)
+    elif minutes > 5:
+        fmt = "%dmin" % minutes
+    elif minutes > 0:
+        fmt = "%dmin" % minutes
+        if seconds >= 30:
+            fmt = "%s 30sec" % fmt
+    elif seconds > 45:
+        fmt = "< 1min"
+    elif seconds > 30:
+        fmt = "< 45sec"
+    elif seconds > 15:
+        fmt = "< 30sec"
+    else:
+        fmt = "%dsec" % seconds
+    return fmt
+
+def TransferProgress(progress, eta, changed_bytes, elapsed, speed, stalled):
+    """Shortcut used for upload progress messages (verbosity 5)."""
+    dots = int(0.4 * progress) # int(40.0 * progress / 100.0) -- for 40 chars
+    data_amount = float(changed_bytes) / 1024.0
+    data_scale = "KB"
+    if data_amount > 1000.0:
+        data_amount /= 1024.0
+        data_scale = "MB"
+    if data_amount > 1000.0:
+        data_amount /= 1024.0
+        data_scale = "GB"
+    if stalled:
+        eta_str = "Stalled!" 
+        speed_amount = 0
+        speed_scale = "B"
+    else:
+        eta_str = _RemainingSecs2Str(eta)
+        speed_amount = float(speed) / 1024.0
+        speed_scale = "KB"
+        if speed_amount > 1000.0:
+            speed_amount /= 1024.0
+            speed_scale = "MB"
+        if speed_amount > 1000.0:
+            speed_amount /= 1024.0
+            speed_scale = "GB"
+    s = "%.1f%s %s [%.1f%s/s] [%s>%s] %d%% ETA %s" % (data_amount, data_scale,
+                                                            _ElapsedSecs2Str(elapsed), 
+                                                            speed_amount, speed_scale, 
+                                                            '='*dots, ' '*(40-dots), 
+                                                            progress, 
+                                                            eta_str
+                                                          )
+
+    controlLine = "%d %d %d %d %d %d" % (changed_bytes, elapsed, progress, eta, speed, stalled)
+    Log(s, NOTICE, InfoCode.upload_progress, controlLine)
 
 def PrintCollectionStatus(col_stats, force_print=False):
     """Prints a collection status to the log"""
@@ -137,6 +216,8 @@ class WarningCode:
     cannot_stat = 9
     cannot_read = 10
     no_sig_for_time = 11
+    cannot_process = 12
+    process_skipped = 13
 
 def Warn(s, code=WarningCode.generic, extra=None):
     """Shortcut used for warning messages (verbosity 2)"""
@@ -193,13 +274,23 @@ class ErrorCode:
     enryption_mismatch = 45
     pythonoptimize_set = 46
 
+    dpbx_nologin       = 47
+
     # 50->69 reserved for backend errors
     backend_error = 50
     backend_permission_denied = 51
     backend_not_found = 52
     backend_no_space = 53
+    backend_command_error = 54
+    backend_code_error    = 55
 
+    # Reserve 126 because it is used as an error code for pkexec
+    # Reserve 127 because it is used as an error code for pkexec
     # Reserve 255 because it is used as an error code for gksu
+
+def Error(s, code=ErrorCode.generic, extra=None):
+    """Write error message"""
+    Log(s, ERROR, code, extra)
 
 def FatalError(s, code=ErrorCode.generic, extra=None):
     """Write fatal error message and exit"""

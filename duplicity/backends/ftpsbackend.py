@@ -80,7 +80,9 @@ class FTPSBackend(duplicity.backend.Backend):
         os.write(self.tempfile, "set net:max-retries %s\n" % globals.num_retries)
         os.write(self.tempfile, "set ftp:passive-mode %s\n" % self.conn_opt)
         os.write(self.tempfile, "open %s %s\n" % (self.portflag, self.parsed_url.hostname))
-        os.write(self.tempfile, "user %s %s\n" % (self.parsed_url.username, self.password))
+        # allow .netrc auth by only setting user/pass when user was actually given
+        if self.parsed_url.username:
+            os.write(self.tempfile, "user %s %s\n" % (self.parsed_url.username, self.password))
         os.close(self.tempfile)
 
         self.flags = "-f %s" % self.tempname
@@ -117,8 +119,9 @@ class FTPSBackend(duplicity.backend.Backend):
         filelist = ""
         for filename in filename_list:
             filelist += "\'%s\' " % filename
-        remote_dir = urllib.unquote(self.parsed_url.path.lstrip('/')).rstrip()
-        commandline = "lftp -c 'source %s;cd \'%s\';rm %s'" % (self.tempname, remote_dir, filelist.rstrip())
-        self.popen_persist(commandline)
+        if filelist.rstrip():
+            remote_dir = urllib.unquote(self.parsed_url.path.lstrip('/')).rstrip()
+            commandline = "lftp -c 'source %s;cd \'%s\';rm %s'" % (self.tempname, remote_dir, filelist.rstrip())
+            self.popen_persist(commandline)
 
 duplicity.backend.register_backend("ftps", FTPSBackend)

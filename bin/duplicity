@@ -2,7 +2,7 @@
 # -*- Mode:Python; indent-tabs-mode:nil; tab-width:4 -*-
 #
 # duplicity -- Encrypted bandwidth efficient backup
-# Version 0.6.18 released February 29, 2012
+# Version 0.6.22 released August 22, 2013
 #
 # Copyright 2002 Ben Escoto <ben@emerose.org>
 # Copyright 2007 Kenneth Loafman <kenneth@loafman.com>
@@ -29,13 +29,19 @@
 
 import getpass, gzip, os, sys, time, types
 import traceback, platform, statvfs, resource, re
+import threading
+from datetime import datetime
+
+# override locale to avoid bug #682837, until
+# the logger finally deals with locales cleanly
+os.environ['LC_ALL']="POSIX"
 
 pwd = os.path.abspath(os.path.dirname(sys.argv[0]))
 if os.path.exists(os.path.join(pwd, "../duplicity")):
     sys.path.insert(0, os.path.abspath(os.path.join(pwd, "../.")))
 
 import gettext
-gettext.install('duplicity')
+gettext.install('duplicity', codeset='utf8')
 
 from duplicity import log
 log.setup()
@@ -57,10 +63,10 @@ from duplicity import robust
 from duplicity import tempdir
 from duplicity import asyncscheduler
 from duplicity import util
+from duplicity import progress
 
 # If exit_val is not None, exit with given value at end.
 exit_val = None
-
 
 def get_passphrase(n, action, for_signing = False):
     """
@@ -93,13 +99,15 @@ def get_passphrase(n, action, for_signing = False):
     # check if we can reuse an already set (signing_)passphrase
     ## if signing key is also an encryption key assume that the passphrase is identical
     if ( for_signing
-         and globals.gpg_profile.sign_key in globals.gpg_profile.recipients
+         and (globals.gpg_profile.sign_key in globals.gpg_profile.recipients
+         or globals.gpg_profile.sign_key in globals.gpg_profile.hidden_recipients)
          and 'PASSPHRASE' in os.environ ):
         log.Notice(_("Reuse configured PASSPHRASE as SIGN_PASSPHRASE"))
         return os.environ['PASSPHRASE']
     ## if one encryption key is also the signing key assume that the passphrase is identical
     if ( not for_signing
-         and globals.gpg_profile.sign_key in globals.gpg_profile.recipients
+         and (globals.gpg_profile.sign_key in globals.gpg_profile.recipients
+         or globals.gpg_profile.sign_key in globals.gpg_profile.hidden_recipients)
          and 'SIGN_PASSPHRASE' in os.environ ):
         log.Notice(_("Reuse configured SIGN_PASSPHRASE as PASSPHRASE"))
         return os.environ['SIGN_PASSPHRASE']
@@ -127,14 +135,14 @@ def get_passphrase(n, action, for_signing = False):
     # for a full backup, we don't need a password if
     # there is no sign_key and there are recipients
     elif (action == "full"
-          and globals.gpg_profile.recipients
+          and (globals.gpg_profile.recipients or globals.gpg_profile.hidden_recipients)
           and not globals.gpg_profile.sign_key):
         return ""
 
     # for an inc backup, we don't need a password if
     # there is no sign_key and there are recipients
     elif (action == "inc"
-          and globals.gpg_profile.recipients
+          and (globals.gpg_profile.recipients or globals.gpg_profile.hidden_recipients)
           and not globals.gpg_profile.sign_key):
         return ""
 
@@ -174,7 +182,7 @@ def get_passphrase(n, action, for_signing = False):
                 use_cache = False
                 continue
 
-            if not pass1 and not globals.gpg_profile.recipients and not for_signing:
+            if not pass1 and not (globals.gpg_profile.recipients or globals.gpg_profile.hidden_recipients) and not for_signing:
                 print _("Cannot use empty passphrase with symmetric encryption!  Please try again.")
                 use_cache = False
                 continue
@@ -221,7 +229,13 @@ def restart_position_iterator(tarblock_iter):
         # Just spin our wheels
         while tarblock_iter.next():
             if (tarblock_iter.previous_index == last_index):
-                if (tarblock_iter.previous_block > last_block):
+                # If both the previous index and this index are done, exit now
+                # before we hit the next index, to prevent skipping its first
+                # block.
+                if not last_block and not tarblock_iter.previous_block:
+                    break
+                # Only check block number if last_block is also a number
+                if last_block and tarblock_iter.previous_block > last_block:
                     break
             if tarblock_iter.previous_index > last_index:
                 log.Warn(_("File %s complete in backup set.\n"
@@ -299,6 +313,7 @@ def write_multivol(backup_type, tarblock_iter, man_outfp, sig_outfp, backend):
             tdp.delete()
         return putsize
 
+
     def validate_encryption_settings(backup_set, manifest):
         """
         When restarting a backup, we have no way to verify that the current
@@ -335,7 +350,9 @@ def write_multivol(backup_type, tarblock_iter, man_outfp, sig_outfp, backend):
         mf = globals.restart.last_backup.get_local_manifest()
         globals.restart.checkManifest(mf)
         globals.restart.setLastSaved(mf)
-        validate_encryption_settings(globals.restart.last_backup, mf)
+# az [2012-03-11 Sun 12:11]
+# this conflicts with public key encryption
+#       validate_encryption_settings(globals.restart.last_backup, mf)
         mf.fh = man_outfp
         last_block = globals.restart.last_block
         log.Notice("Restarting after volume %s, file %s, block %s" %
@@ -347,6 +364,12 @@ def write_multivol(backup_type, tarblock_iter, man_outfp, sig_outfp, backend):
 
     at_end = 0
     bytes_written = 0
+
+    # If --progress option is given, initiate a background thread that will
+    # periodically report progress to the Log.
+    if globals.progress:
+        progress.tracker.set_start_volume(vol_num + 1)
+        progress.progress_thread.start()
 
     # This assertion must be kept until we have solved the problem
     # of concurrency at the backend level. Concurrency 1 is fine
@@ -400,6 +423,10 @@ def write_multivol(backup_type, tarblock_iter, man_outfp, sig_outfp, backend):
 
         # Log human-readable version as well as raw numbers for machine consumers
         log.Progress('Processed volume %d' % vol_num, diffdir.stats.SourceFileSize)
+        # Snapshot (serialize) progress now as a Volume has been completed. This is always the last restore point 
+        # when it comes to restart a failed backup
+        if globals.progress:
+            progress.tracker.snapshot_progress(vol_num)
 
         # for testing purposes only - assert on inc or full
         assert globals.fail_on_volume != vol_num, "Forced assertion for testing at volume %d" % vol_num
@@ -472,7 +499,8 @@ def get_sig_fileobj(sig_type):
     fh = dup_temp.get_fileobj_duppath(globals.archive_dir,
                                       part_sig_filename,
                                       perm_sig_filename,
-                                      remote_sig_filename)
+                                      remote_sig_filename,
+                                      overwrite=True)
     return fh
 
 
@@ -486,6 +514,18 @@ def full_backup(col_stats):
     @rtype: void
     @return: void
     """
+    if globals.progress:
+        progress.tracker = progress.ProgressTracker()
+        # Fake a backup to compute total of moving bytes
+        tarblock_iter = diffdir.DirFull(globals.select)
+        dummy_backup(tarblock_iter)
+        # Store computed stats to compute progress later
+        progress.tracker.set_evidence(diffdir.stats, True)
+        # Reinit the globals.select iterator, so
+        # the core of duplicity can rescan the paths
+        commandline.set_selection()
+        progress.progress_thread = progress.LogProgressThread()
+
     if globals.dry_run:
         tarblock_iter = diffdir.DirFull(globals.select)
         bytes_written = dummy_backup(tarblock_iter)
@@ -508,6 +548,14 @@ def full_backup(col_stats):
         man_outfp.close()
         man_outfp.to_remote()
         man_outfp.to_final()
+
+        if globals.progress:
+            # Terminate the background thread now, if any
+            progress.progress_thread.finished = True
+            progress.progress_thread.join()
+            log.TransferProgress(100.0, 0, progress.tracker.total_bytecount, 
+                                progress.tracker.total_elapsed_seconds(), 
+                                progress.tracker.speed, False)
 
         col_stats.set_values(sig_chain_warning=None)
 
@@ -557,6 +605,20 @@ def incremental_backup(sig_chain):
             time.sleep(2)
             dup_time.setcurtime()
             assert dup_time.curtime != dup_time.prevtime, "time not moving forward at appropriate pace - system clock issues?"
+
+    if globals.progress:
+        progress.tracker = progress.ProgressTracker()
+        # Fake a backup to compute total of moving bytes
+        tarblock_iter = diffdir.DirDelta(globals.select,
+                                         sig_chain.get_fileobjs())
+        dummy_backup(tarblock_iter)
+        # Store computed stats to compute progress later
+        progress.tracker.set_evidence(diffdir.stats, False)
+        # Reinit the globals.select iterator, so
+        # the core of duplicity can rescan the paths
+        commandline.set_selection()
+        progress.progress_thread = progress.LogProgressThread()
+
     if globals.dry_run:
         tarblock_iter = diffdir.DirDelta(globals.select,
                                          sig_chain.get_fileobjs())
@@ -580,6 +642,14 @@ def incremental_backup(sig_chain):
         new_man_outfp.close()
         new_man_outfp.to_remote()
         new_man_outfp.to_final()
+
+        if globals.progress:
+            # Terminate the background thread now, if any
+            progress.progress_thread.finished = True
+            progress.progress_thread.join()
+            log.TransferProgress(100.0, 0, progress.tracker.total_bytecount, 
+                                progress.tracker.total_elapsed_seconds(), 
+                                progress.tracker.speed, False)
 
     print_statistics(diffdir.stats, bytes_written)
 
@@ -750,7 +820,7 @@ def verify(col_stats):
             backup_ropath = path.ROPath(current_path.index)
         if not current_path:
             current_path = path.ROPath(backup_ropath.index)
-        if not backup_ropath.compare_verbose(current_path):
+        if not backup_ropath.compare_verbose(current_path, globals.compare_data):
             diff_count += 1
         total_count += 1
     # Unfortunately, ngettext doesn't handle multiple number variables, so we
@@ -833,6 +903,10 @@ def remove_old(col_stats):
         """Return string listing times of sets in setlist"""
         return "\n".join(map(lambda s: dup_time.timetopretty(s.get_time()),
                              setlist))
+    def chain_times_str(chainlist):
+        """Return string listing times of chains in chainlist"""
+        return "\n".join(map(lambda s: dup_time.timetopretty(s.end_time),
+                             chainlist))
 
     req_list = col_stats.get_older_than_required(globals.remove_time)
     if req_list:
@@ -847,32 +921,39 @@ def remove_old(col_stats):
                    "However, it will not be deleted.  To remove all your backups, "
                    "manually purge the repository."))
 
-    setlist = col_stats.get_older_than(globals.remove_time)
-    if not setlist:
+    chainlist = col_stats.get_chains_older_than(globals.remove_time)
+    if not chainlist:
         log.Notice(_("No old backup sets found, nothing deleted."))
         return
     if globals.force:
-        log.Notice(gettext.ngettext("Deleting backup set at time:",
-                                    "Deleting backup sets at times:",
-                                    len(setlist)) +
-                   "\n" + set_times_str(setlist))
-        setlist.reverse() # save oldest for last
-        for set in setlist:
+        log.Notice(gettext.ngettext("Deleting backup chain at time:",
+                                    "Deleting backup chains at times:",
+                                    len(chainlist)) +
+                   "\n" + chain_times_str(chainlist))
+        # Add signature files too, since they won't be needed anymore
+        chainlist += col_stats.get_signature_chains_older_than(globals.remove_time)
+        chainlist.reverse() # save oldest for last
+        for chain in chainlist:
             # if remove_all_inc_of_but_n_full_mode mode, remove only incrementals one and not full
-            if globals.dry_run:
-                log.Notice("(Not: dry-run) Deleting set " + set.type + " " + dup_time.timetopretty(set.get_time()))
+            if globals.remove_all_inc_of_but_n_full_mode:
+                if isinstance(chain, collections.SignatureChain):
+                    chain_desc = _("Deleting incremental signature chain %s")
+                else:
+                    chain_desc = _("Deleting incremental backup chain %s")
             else:
-                if globals.remove_all_inc_of_but_n_full_mode and (set.type != "inc") :
-                    log.Notice("Not deleting set " + set.type + " " + dup_time.timetopretty(set.get_time()))
-                else :
-                    log.Notice("Deleting set " + set.type + " " + dup_time.timetopretty(set.get_time()))
-                    set.delete()
+                if isinstance(chain, collections.SignatureChain):
+                    chain_desc = _("Deleting complete signature chain %s")
+                else:
+                    chain_desc = _("Deleting complete backup chain %s")
+            log.Notice(chain_desc % dup_time.timetopretty(chain.end_time))
+            if not globals.dry_run:
+                chain.delete(keep_full=globals.remove_all_inc_of_but_n_full_mode)
         col_stats.set_values(sig_chain_warning=None)
     else:
-        log.Notice(gettext.ngettext("Found old backup set at the following time:",
-                                    "Found old backup sets at the following times:",
-                                    len(setlist)) +
-                   "\n" + set_times_str(setlist) + "\n" +
+        log.Notice(gettext.ngettext("Found old backup chain at the following time:",
+                                    "Found old backup chains at the following times:",
+                                    len(chainlist)) +
+                   "\n" + chain_times_str(chainlist) + "\n" +
                    _("Rerun command with --force option to actually delete."))
 
 
@@ -923,11 +1004,10 @@ def sync_archive(decrypt):
         """
         Copy data from src_iter to file at fn
         """
-        block_size = 128 * 1024
         file = open(filename, "wb")
         while True:
             try:
-                data = src_iter.next(block_size).data
+                data = src_iter.next().data
             except StopIteration:
                 break
             file.write(data)
@@ -975,9 +1055,9 @@ def sync_archive(decrypt):
             def __init__(self, fileobj):
                 self.fileobj = fileobj
 
-            def next(self, size):
+            def next(self):
                 try:
-                    res = Block(self.fileobj.read(size))
+                    res = Block(self.fileobj.read(self.get_read_size()))
                 except Exception:
                     if hasattr(self.fileobj, 'name'):
                         name = self.fileobj.name
@@ -990,6 +1070,9 @@ def sync_archive(decrypt):
                     self.fileobj.close()
                     raise StopIteration
                 return res
+
+            def get_read_size(self):
+                return 128 * 1024
 
             def get_footer(self):
                 return ""
@@ -1138,7 +1221,7 @@ def log_startup_parms(verbosity=log.INFO):
     log Python, duplicity, and system versions
     """
     log.Log('=' * 80, verbosity)
-    log.Log("duplicity 0.6.18 (February 29, 2012)", verbosity)
+    log.Log("duplicity 0.6.22 (August 22, 2013)", verbosity)
     log.Log("Args: %s" % (' '.join(sys.argv),), verbosity)
     log.Log(' '.join(platform.uname()), verbosity)
     log.Log("%s %s" % (sys.executable or sys.platform, sys.version), verbosity)
@@ -1309,10 +1392,8 @@ See https://bugs.launchpad.net/duplicity/+bug/931175
 
     os.umask(077)
 
-    # full/inc only needs a passphrase for symmetric keys
-    if not action in ["full", "inc"] or not globals.gpg_profile.recipients:
-        # get the passphrase if we need to based on action/options
-        globals.gpg_profile.passphrase = get_passphrase(1, action)
+    # get the passphrase if we need to based on action/options
+    globals.gpg_profile.passphrase = get_passphrase(1, action)
 
     if action == "restore":
         restore(col_stats)
@@ -1340,7 +1421,7 @@ See https://bugs.launchpad.net/duplicity/+bug/931175
 
         # if there are no recipients (no --encrypt-key), it must be a
         # symmetric key. Therefore, confirm the passphrase
-        if not globals.gpg_profile.recipients:
+        if not (globals.gpg_profile.recipients or globals.gpg_profile.hidden_recipients):
             globals.gpg_profile.passphrase = get_passphrase(2, action)
             # a limitation in the GPG implementation does not allow for
             # inputting different passphrases, this affects symmetric+sign.
