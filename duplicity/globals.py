@@ -24,7 +24,7 @@
 import socket, os
 
 # The current version of duplicity
-version = "0.6.18"
+version = "0.6.22"
 
 # Default file_prefix value
 file_prefix = ""
@@ -74,6 +74,9 @@ gpg_profile = None
 
 # Options to pass to gpg
 gpg_options = ''
+
+# Maximum file blocksize
+max_blocksize = 2048L
 
 # If true, filelists and directory statistics will be split on
 # nulls instead of newlines.
@@ -198,18 +201,25 @@ old_filenames = False
 # Wheter to specify --use-agent in GnuPG options
 use_agent = False
 
-# ssh commands to use
-scp_command = "scp"
-sftp_command = "sftp"
+# ssh commands to use, used by ssh_pexpect (defaults to sftp, scp)
+scp_command = None
+sftp_command = None
 
 # default to batch mode using public-key encryption
 ssh_askpass = False
+
+# default ssh backend is paramiko
+ssh_backend = "paramiko"
 
 # user added ssh options
 ssh_options = ""
 
 # whether to use scp for put/get, sftp is default
 use_scp = False
+
+# HTTPS ssl optons (currently only webdav)
+ssl_cacert_file = None
+ssl_no_check_certificate = False
 
 # user added rsync options
 rsync_options = ""
@@ -234,3 +244,14 @@ extra_clean = False
 
 # Renames (--rename)
 rename = {}
+
+# enable data comparison on verify runs
+compare_data = False
+
+# When selected, triggers a dry-run before a full or incremental to compute
+# changes, then runs the real operation and keeps track of the real progress
+progress = False
+
+# Controls the upload progress messages refresh rate. Default: update each 
+# 3 seconds
+progress_rate = 3 

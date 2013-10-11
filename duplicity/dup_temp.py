@@ -60,7 +60,7 @@ class TempPath(path.Path):
         return fh
 
 
-def get_fileobj_duppath(dirpath, partname, permname, remname):
+def get_fileobj_duppath(dirpath, partname, permname, remname, overwrite=False):
     """
     Return a file object open for writing, will write to filename
 
@@ -76,7 +76,10 @@ def get_fileobj_duppath(dirpath, partname, permname, remname):
                            partname = partname, permname = permname, remname = remname)
     else:
         dp = path.DupPath(dirpath.name, index = (partname,))
-        fh = FileobjHooked(dp.filtered_open("ab"), tdp = None, dirpath = dirpath,
+        mode = "ab"
+        if overwrite:
+            mode = "wb"
+        fh = FileobjHooked(dp.filtered_open(mode), tdp = None, dirpath = dirpath,
                            partname = partname, permname = permname, remname = remname)
 
     def rename_and_forget():
@@ -253,9 +256,9 @@ class SrcIter:
     def __init__(self, src):
         self.src = src
         self.fp = src.open("rb")
-    def next(self, size):
+    def next(self):
         try:
-            res = Block(self.fp.read(size))
+            res = Block(self.fp.read(self.get_read_size()))
         except Exception:
             log.FatalError(_("Failed to read %s: %s") %
                            (self.src.name, sys.exc_info()),
@@ -264,5 +267,7 @@ class SrcIter:
             self.fp.close()
             raise StopIteration
         return res
+    def get_read_size(self):
+        return 128 * 1024
     def get_footer(self):
         return ""

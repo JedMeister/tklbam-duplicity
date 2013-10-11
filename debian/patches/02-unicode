@@ -1,0 +1,16 @@
+Author: Alexander Zangerl <az@debian.org>
+Subject: fix unicode decode-does-encode-and-fail problems with iso8859 locales
+
+--- a/bin/duplicity
++++ b/bin/duplicity
+@@ -32,6 +32,10 @@ import traceback, platform, statvfs, res
+ import threading
+ from datetime import datetime
+ 
++# override locale to avoid bug #682837, until
++# the logger finally deals with locales cleanly
++os.environ['LC_ALL']="POSIX"
++
+ pwd = os.path.abspath(os.path.dirname(sys.argv[0]))
+ if os.path.exists(os.path.join(pwd, "../duplicity")):
+     sys.path.insert(0, os.path.abspath(os.path.join(pwd, "../.")))
