@@ -1,10 +1,10 @@
 This package was originally debianized by Martin Wuertele <maxx@debian.org>
-in 2003. Since April 2007 it is maintained 
+in 2003. Since April 2007 it is maintained
 by Alexander Zangerl <az@debian.org>.
 
 It was downloaded from http://www.nongnu.org/duplicity/
 
-Upstream Authors: 
+Upstream Authors:
 	Ben Escoto <bescoto@stanford.edu> (duplicity author)
 	Jiri Tyr <jiri.tyr@e-learning.vslib.cz> (sftp)
 	intrigeri <intrigeri@boum.org> (sftp-command)
@@ -75,9 +75,6 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 Lesser General Public License for more details.
 
 You should have received a copy of the GNU Lesser General Public
-License along with this library; if not, write to the Free Software 
+License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
 or see http://www.gnu.org/copyleft/lesser.html
-
-
-
