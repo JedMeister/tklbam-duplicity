@@ -4,16 +4,16 @@ Priority: optional
 Maintainer: Liraz Siri <liraz@turnkeylinux.org>
 Build-Depends:
  debhelper (>= 10),
+ dh-python,
  dpatch,
- librsync-dev (>=0.9.6),
- python-dev,
+ librsync-dev (>= 0.9.6),
+ python-all (>= 2.6.6-3~),
 Standards-Version: 4.0.0
 X-Python-Version: >= 2.5
 
 Package: tklbam-duplicity
 Architecture: any
 Homepage: http://duplicity.nongnu.org/
-XB-Python-Version: ${python:Versions}
 Depends:
  ${misc:Depends},
  ${python:Depends},
