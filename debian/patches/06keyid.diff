@@ -1,14 +1,10 @@
-#! /bin/sh /usr/share/dpatch/dpatch-run
-## 06keyid.dpatch by  <az@debian.org>
-##
-## All lines beginning with `## DP:' are a description of the patch.
-## DP: better key-id documentation as requested in #671810
+# 06keyid.diff by  <az@debian.org>
+#
+# better key-id documentation as requested in #671810
 
-@DPATCH@
-diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' duplicity-0.6.18~/bin/duplicity.1 duplicity-0.6.18/bin/duplicity.1
---- duplicity-0.6.18~/bin/duplicity.1	2012-05-07 15:56:27.822124994 +1000
-+++ duplicity-0.6.18/bin/duplicity.1	2012-05-07 16:15:15.136826773 +1000
-@@ -290,9 +290,13 @@
+--- tklbam-duplicity.orig/bin/duplicity.1
++++ tklbam-duplicity/bin/duplicity.1
+@@ -290,9 +290,13 @@ enough storage space is required to stor
  Calculate what would be done, but do not perform any backend actions
  
  .TP
@@ -23,7 +19,7 @@ diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' 
  
  .TP
  .BI "--encrypt-secret-keyring " filename
-@@ -304,12 +308,12 @@
+@@ -304,12 +308,12 @@ This keyring is not used when creating a
  default secret keyring is used which is usually located at .gnupg/secring.gpg
  
  .TP
@@ -39,7 +35,7 @@ diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' 
  
  .TP
  .BI "--exclude " shell_pattern
-@@ -620,14 +624,15 @@
+@@ -620,14 +624,15 @@ Deprecated and ignored. The sftp/scp bac
  sftp client program.
  
  .TP

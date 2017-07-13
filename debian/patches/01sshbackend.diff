@@ -1,10 +1,5 @@
-#! /bin/sh /usr/share/dpatch/dpatch-run
-## 01sshbackend.dpatch by  <az@debian.org>
-##
-## All lines beginning with `## DP:' are a description of the patch.
-## DP: replace sshbackend with rewritten one
+# 01sshbackend.diff by  <az@debian.org>
 
-@DPATCH@
 diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' duplicity-0.6.18~/duplicity/backends/sshbackend.py duplicity-0.6.18/duplicity/backends/sshbackend.py
 --- duplicity-0.6.18~/duplicity/backends/sshbackend.py	2012-03-01 05:24:04.000000000 +1000
 +++ duplicity-0.6.18/duplicity/backends/sshbackend.py	2012-03-11 11:56:10.284325675 +1000

@@ -1,12 +1,9 @@
-#! /bin/sh /usr/share/dpatch/dpatch-run
-## 02cachedesync.dpatch by  <az@debian.org>
-##
-## All lines beginning with `## DP:' are a description of the patch.
-## DP: fix for (upstream)#497243: remove causes cache desynchronization
-## DP: backed out the attempted fix, as it only dealt with the symptomps 
-## DP: and not the root-cause (which is the ill-advised change-set 616)
+# 02cachedesync.diff by  <az@debian.org>
+#
+# fix for (upstream)#497243: remove causes cache desynchronization
+# backed out the attempted fix, as it only dealt with the symptomps 
+# and not the root-cause (which is the ill-advised change-set 616)
 
-@DPATCH@
 diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' duplicity-0.6.14~/duplicity/collections.py duplicity-0.6.14/duplicity/collections.py
 --- duplicity-0.6.14~/duplicity/collections.py	2011-06-18 23:53:21.000000000 +1000
 +++ duplicity-0.6.14/duplicity/collections.py	2011-07-25 18:58:44.854456333 +1000
