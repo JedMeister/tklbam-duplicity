@@ -7,7 +7,7 @@ Build-Depends:
  dpatch,
  librsync-dev (>=0.9.6),
  python-dev,
-Standards-Version: 3.9.1
+Standards-Version: 4.0.0
 X-Python-Version: >= 2.5
 
 Package: tklbam-duplicity
