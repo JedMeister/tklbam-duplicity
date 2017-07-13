@@ -5,6 +5,11 @@ export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 DPKG_EXPORT_BUILDFLAGS = 1
 
 include /usr/share/dpkg/buildflags.mk
+include /usr/share/dpkg/pkg-info.mk
 
 %:
 	dh $@ --with python2 --buildsystem=pybuild
+
+override_dh_auto_install:
+	dh_auto_install
+	rm -rf debian/$(DEB_SOURCE)/usr/share/doc/duplicity-*
