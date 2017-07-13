@@ -3,7 +3,7 @@ Section: utils
 Priority: optional
 Maintainer: Liraz Siri <liraz@turnkeylinux.org>
 Build-Depends:
- debhelper (>= 5.0.37.2),
+ debhelper (>= 10),
  dpatch,
  librsync-dev (>=0.9.6),
  python-dev,
