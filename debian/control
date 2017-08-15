@@ -2,16 +2,24 @@ Source: tklbam-duplicity
 Section: utils
 Priority: optional
 Maintainer: Liraz Siri <liraz@turnkeylinux.org>
-Build-Depends: debhelper (>= 5.0.37.2), librsync-dev (>=0.9.6), python-dev, dpatch
-Standards-Version: 3.9.1
+Build-Depends:
+ debhelper (>= 10),
+ dh-python,
+ librsync-dev (>= 0.9.6),
+ python-all (>= 2.6.6-3~),
+Standards-Version: 4.0.0
 X-Python-Version: >= 2.5
 
 Package: tklbam-duplicity
 Architecture: any
 Homepage: http://duplicity.nongnu.org/
-XB-Python-Version: ${python:Versions}
-Depends: ${shlibs:Depends}, ${python:Depends}, ${misc:Depends}
-Suggests: tklbam-python-boto, ncftp
+Depends:
+ ${misc:Depends},
+ ${python:Depends},
+ ${shlibs:Depends},
+Suggests:
+ ncftp,
+ tklbam-python-boto,
 Description: encrypted bandwidth-efficient backup
  Duplicity backs directories by producing encrypted tar-format volumes
  and uploading them to a remote or local file server. Because duplicity
@@ -19,4 +27,3 @@ Description: encrypted bandwidth-efficient backup
  record the parts of files that have changed since the last backup.
  Because duplicity uses GnuPG to encrypt and/or sign these archives, they
  will be safe from spying and/or modification by the server.
-

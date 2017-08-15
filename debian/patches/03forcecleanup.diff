@@ -1,10 +1,7 @@
-#! /bin/sh /usr/share/dpatch/dpatch-run
-## 03forcecleanup.dpatch by  <az@debian.org>
-##
-## All lines beginning with `## DP:' are a description of the patch.
-## DP: fix for #572792: we force a extra-clean cleanup for all remove* ops
+# 03forcecleanup.diff by  <az@debian.org>
+#
+# fix for #572792: we force a extra-clean cleanup for all remove* ops
 
-@DPATCH@
 diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' duplicity-0.6.15~/duplicity duplicity-0.6.15/duplicity
 --- duplicity-0.6.15~/bin/duplicity	2011-08-20 04:27:00.000000000 +1000
 +++ duplicity-0.6.15/bin/duplicity	2011-10-01 15:24:07.069725446 +1000
