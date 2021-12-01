@@ -25,8 +25,8 @@ from distutils.core import setup, Extension
 
 version_string = "0.6.18"
 
-if sys.version_info[:2] < (2,4):
-    print "Sorry, duplicity requires version 2.4 or later of python"
+if sys.version_info[:2] != (2,7):
+    print("Sorry, duplicity requires version 2.7 of python")
     sys.exit(1)
 
 incdir_list = libdir_list = None
