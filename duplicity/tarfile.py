@@ -1,4 +1,4 @@
-#! /usr/bin/python2.7
+#! /usr/lib/tklbam-pypy2/bin/pypy
 # -*- coding: iso-8859-1 -*-
 #-------------------------------------------------------------------
 # tarfile.py
